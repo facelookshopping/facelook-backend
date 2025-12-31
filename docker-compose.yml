@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:17.6
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: shopping_db
+      POSTGRES_USER: shopping_user
+      POSTGRES_PASSWORD: shopping_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
