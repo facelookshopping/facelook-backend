@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 
 # 3. Install Dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm install --force
 
 # 4. Copy Source Code
 COPY . .
