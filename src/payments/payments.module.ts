@@ -3,6 +3,6 @@ import { PaymentsService } from './payments.service';
 
 @Module({
   providers: [PaymentsService],
-  exports: [PaymentsService], // ✅ Exporting so OrdersModule can use it
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

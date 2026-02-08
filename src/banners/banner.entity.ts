@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 
 @Entity()
-export class Banner {
+export class Banner extends BaseEntity{
   @PrimaryGeneratedColumn()
   id: number;
 

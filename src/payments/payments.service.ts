@@ -1,69 +1,61 @@
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class PaymentsService {
-  private merchantId = process.env.PHONEPE_MERCHANT_ID;
+  private readonly logger = new Logger(PaymentsService.name);
+
+  // Environment variables
+  private merchantId = process.env.PHONEPE_MERCHANT_ID; // e.g., PGTESTPAYUAT
   private saltKey = process.env.PHONEPE_SALT_KEY;
-  private saltIndex = process.env.PHONEPE_SALT_INDEX; // Usually 1
-  private phonePeHostUrl = process.env.PHONEPE_HOST_URL; // https://api-preprod.phonepe.com/apis/pg-sandbox (Test) or https://api.phonepe.com/apis/hermes (Prod)
-  private callbackUrl = `${process.env.API_BASE_URL}/orders/callback`; // Your deployed backend URL
+  private saltIndex = process.env.PHONEPE_SALT_INDEX;
+  private phonePeHostUrl = process.env.PHONEPE_HOST_URL;
+  private callbackUrl = `${process.env.API_BASE_URL}/orders/callback`;
+
+  constructor(
+    // Inject your Database Repository here (e.g., @InjectRepository(Order) private orderRepo)
+  ) { }
 
   // 1. Initiate Payment
-  async initiatePhonePePayment(amount: number, orderId: string, userId: string, mobileNumber: string) {
+  async getPhonePeSdkParams(amount: number, userId: string, mobileNumber: string) {
     const transactionId = `TXN_${uuidv4()}`;
     
-    // Construct Payload
     const payload = {
       merchantId: this.merchantId,
       merchantTransactionId: transactionId,
       merchantUserId: `USER_${userId}`,
       amount: amount * 100, // Amount in paise
-      redirectUrl: this.callbackUrl,
-      redirectMode: "POST",
       callbackUrl: this.callbackUrl,
       mobileNumber: mobileNumber,
       paymentInstrument: {
-        type: "PAY_PAGE" // Opens PhonePe's checkout page
+        type: "PAY_PAGE" // SDK handles the UI
       }
     };
 
-    // Encode Payload (Base64)
+    // 1. Encode Payload to Base64
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
 
-    // Generate Checksum (X-VERIFY header)
-    // Formula: SHA256(base64Payload + "/pg/v1/pay" + saltKey) + ### + saltIndex
-    const stringToHash = base64Payload + '/pg/v1/pay' + this.saltKey;
+    // 2. Generate Checksum (Base64 + Endpoint + Salt)
+    // SDK Endpoint is usually "/pg/v1/pay"
+    const apiEndPoint = "/pg/v1/pay";
+    const stringToHash = base64Payload + apiEndPoint + this.saltKey;
     const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
-    const xVerify = `${sha256}###${this.saltIndex}`;
+    const checksum = `${sha256}###${this.saltIndex}`;
 
-    try {
-      const response = await axios.post(
-        `${this.phonePeHostUrl}/pg/v1/pay`,
-        { request: base64Payload },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-VERIFY': xVerify,
-          },
-        }
-      );
-
-      // Return the URL for Flutter to open in WebView or Browser
-      return {
-        paymentUrl: response.data.data.instrumentResponse.redirectInfo.url,
-        merchantTransactionId: transactionId
-      };
-    } catch (error) {
-      throw new InternalServerErrorException(`PhonePe Init Error: ${error.message}`);
-    }
+    return {
+      base64Payload: base64Payload,
+      checksum: checksum,
+      merchantTransactionId: transactionId,
+      apiEndPoint: apiEndPoint,
+      packageName: process.env.APP_PACKAGE_NAME,
+      callbackUrl: this.callbackUrl// Required for Android context
+    };
   }
 
-  // 2. Check Payment Status (Server-to-Server Check)
-  // Essential because user might close app before callback hits
-  async checkPaymentStatus(merchantTransactionId: string): Promise<boolean> {
+  // 2. Check Payment Status (Manual Verification)
+  async checkPaymentStatus(merchantTransactionId: string): Promise<{ success: boolean; status: string }> {
     const stringToHash = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}` + this.saltKey;
     const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
     const xVerify = `${sha256}###${this.saltIndex}`;
@@ -80,9 +72,18 @@ export class PaymentsService {
         }
       );
 
-      return response.data.code === 'PAYMENT_SUCCESS';
+      const status = response.data.code;
+
+      // Update DB based on status
+      // if (status === 'PAYMENT_SUCCESS') { await this.markOrderAsPaid(merchantTransactionId); }
+
+      return {
+        success: status === 'PAYMENT_SUCCESS',
+        status: status
+      };
     } catch (error) {
-      return false; // Treat error as pending/failed
+      this.logger.error(`Status Check Error: ${error.message}`);
+      return { success: false, status: 'FAILED' };
     }
   }
 }

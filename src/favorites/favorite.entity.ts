@@ -1,10 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, Unique, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Unique, CreateDateColumn, BaseEntity } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Product } from '../products/product.entity';
 
 @Entity()
 @Unique(['user', 'product'])
-export class Favorite {
+export class Favorite extends BaseEntity{
   @PrimaryGeneratedColumn()
   id: number;
 

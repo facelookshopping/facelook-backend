@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, Column, Unique, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Column, Unique, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Product } from '../products/product.entity';
 
@@ -6,7 +6,7 @@ import { Product } from '../products/product.entity';
 // ⚠️ CRITICAL: Unique constraint now includes size and color.
 // This prevents duplicate rows for the exact same variation, but allows different variations.
 @Unique(['user', 'product', 'size', 'color']) 
-export class Cart {
+export class Cart extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

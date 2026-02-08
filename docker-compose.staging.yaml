@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: facelook-staging-api
+    restart: always
+    ports:
+      - "3001:3000"  # Staging runs on port 3001
+    env_file:
+      - .env.staging
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=shopping_user
+      - DATABASE_PASSWORD=shopping_pass
+      - DATABASE_NAME=facelook_staging_db
+    volumes:
+      - ./uploads:/usr/src/app/uploads  # ✅ Persist Images
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: facelook-staging-db
+    restart: always
+    environment:
+      POSTGRES_USER: shopping_user
+      POSTGRES_PASSWORD: shopping_pass
+      POSTGRES_DB: facelook_staging_db
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data # ✅ Persist DB Data
+
+volumes:
+  pgdata_staging:

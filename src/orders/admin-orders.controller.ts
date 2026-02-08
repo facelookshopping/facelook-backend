@@ -1,9 +1,9 @@
-import { UseGuards, Controller, Patch, Param, Body } from "@nestjs/common";
+import { UseGuards, Controller, Patch, Param, Body, ParseIntPipe } from "@nestjs/common";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { Roles } from "src/auth/roles.decorator";
 import { RolesGuard } from "src/auth/roles.guard";
 import { UserRole } from "src/users/user.entity";
-import { OrderStatus } from "./order.entity";
+import { UpdateOrderStatusDto } from "./dto/update-status.dto";
 import { OrdersService } from "./orders.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,10 +14,9 @@ export class AdminOrdersController {
   @Patch(':id/status')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   async updateStatus(
-    @Param('id') id: number, 
-    @Body('status') status: OrderStatus
+    @Param('id', ParseIntPipe) id: number, 
+    @Body() dto: UpdateOrderStatusDto
   ) {
-    // Logic to update status
-    return this.ordersService.updateStatus(id, status);
+    return this.ordersService.updateStatus(id, dto.status, dto.description);
   }
 }

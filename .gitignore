@@ -35,12 +35,12 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+/uploads
+
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.production
+.env.staging
 
 # temp directory
 .temp
@@ -54,3 +54,5 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+firebase_service_account.json

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: facelook-prod-api
+    restart: always
+    ports:
+      - "3000:3000" # Production runs on port 3000
+    env_file:
+      - .env.production
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=shopping_user
+      - DATABASE_PASSWORD=shopping_pass
+      - DATABASE_NAME=facelook_prod_db
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: facelook-prod-db
+    restart: always
+    environment:
+      POSTGRES_USER: shopping_user
+      POSTGRES_PASSWORD: shopping_pass
+      POSTGRES_DB: facelook_prod_db
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+
+volumes:
+  pgdata_prod:

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, BaseEntity } from 'typeorm';
 import { ProductVariant } from './entities/product-variant.entity';
 
 export enum Gender {
@@ -9,7 +9,7 @@ export enum Gender {
 }
 
 @Entity()
-export class Product {
+export class Product extends BaseEntity{
   @PrimaryGeneratedColumn()
   id: number;
 

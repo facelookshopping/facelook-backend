@@ -1,6 +1,6 @@
 import { Exclude } from 'class-transformer';
-import { Address } from 'src/addresses/address.entity';
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Address } from '../addresses/address.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, BaseEntity } from 'typeorm';
 
 export enum UserRole {
   SUPERADMIN = 'superadmin',
@@ -12,25 +12,30 @@ export enum UserRole {
 }
 
 @Entity()
-export class User {
+export class User extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true, nullable: true })
-  phoneNumber: string;
+  // ✅ FIX 1: Explicitly set type: 'varchar'
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  phoneNumber?: string | null; // Supports string or null
 
   @Column({ nullable: true })
   name: string;
 
-  @Column({ unique: true, nullable: true })
+  // ✅ FIX 2: Explicitly set type: 'varchar' here too just in case
+  @Column({ type: 'varchar', unique: true, nullable: true })
   email: string;
 
   @OneToMany(() => Address, (address) => address.user)
-  addresses: Address[]; 
+  addresses: Address[];
 
   @Exclude()
   @Column({ nullable: true })
   password?: string;
+
+  @Column({ nullable: true })
+  profilePicture: string;
 
   @Column({ default: false })
   isVerified: boolean;
@@ -43,4 +48,11 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  fcmToken: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  @Exclude()
+  currentHashedRefreshToken?: string | null;
 }
