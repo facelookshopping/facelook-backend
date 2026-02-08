@@ -44,13 +44,13 @@ AdminJS.registerAdapter({ Database, Resource });
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'shopping_user',
-      password: 'shopping_pass',
-      database: 'shopping_db',
-      autoLoadEntities: true,
-      synchronize: true,
+      host: process.env.DATABASE_HOST || 'localhost', // Use the Env Var!
+      port: parseInt(process.env.DATABASE_PORT || '5432'),
+      username: process.env.DATABASE_USER || 'shopping_user',
+      password: process.env.DATABASE_PASSWORD || 'shopping_pass',
+      database: process.env.DATABASE_NAME || 'shopping_db',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: true, // Be careful with this in production!
     }),
     // ✅ Load ALL entities here so TypeORM knows about them
     TypeOrmModule.forFeature([
