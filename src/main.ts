@@ -1,19 +1,27 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import morgan from 'morgan'; // Changed to '* as morgan' for better compatibility
+import morgan from 'morgan';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import { NestExpressApplication } from '@nestjs/platform-express'; // ✅ 1. Import this
-import { join } from 'path'; // ✅ 2. Import this
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  // ✅ 3. Add <NestExpressApplication> generic here
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // --- 1. Security: Enable CORS (Crucial for Production) ---
+  // This allows your app and payment gateways to talk to the server without blocking.
+  app.enableCors({
+    origin: '*', // For mobile apps, '*' is usually fine. For web, strictly list domains.
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   // --- Firebase Setup ---
-  // Ensure this file actually exists at this path relative to dist/src/main.js
-  const serviceAccount = require('../firebase_service_account.json');
+  // We use process.cwd() to ensure we find the file in the Docker container root
+  const serviceAccountPath = join(process.cwd(), 'firebase_service_account.json');
+  const serviceAccount = require(serviceAccountPath);
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -30,27 +38,30 @@ async function bootstrap() {
     defaultVersion: '1',
   });
 
-  app.use(morgan('dev'));
+  app.use(morgan('combined')); // 'combined' gives better logs for production than 'dev'
 
-  // ✅ 4. Serve Static Assets (Profile Pictures)
-  // This exposes http://localhost:3000/uploads/profiles/filename.jpg
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  // --- 2. Serve Static Assets (Robust Fix) ---
+  // standardizes the path to /usr/src/app/uploads regardless of build structure
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
 
   // --- Swagger Setup ---
+  // We strictly hide Swagger in production unless you explicitly want it
   const config = new DocumentBuilder()
     .setTitle('FaceLook')
     .setDescription('The FaceLook API description')
     .setVersion('1.0')
     .addTag('shopping')
-    .addBearerAuth() // Recommended: Add this if you use JWT in Swagger
+    .addBearerAuth()
+    .addServer(process.env.APP_URL || 'http://localhost:3000') // Explicitly set Server URL
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  SwaggerModule.setup('docs', app, documentFactory); // Changed path to 'docs' to avoid conflict with 'api' routes
 
   // --- Start Server ---
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT || 3000);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

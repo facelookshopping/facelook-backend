@@ -1,44 +1,56 @@
-import { Injectable, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   private readonly logger = new Logger(PaymentsService.name);
 
-  // Environment variables
-  private merchantId = process.env.PHONEPE_MERCHANT_ID; // e.g., PGTESTPAYUAT
+  // Environment variables with fallbacks or strict checks
+  private merchantId = process.env.PHONEPE_MERCHANT_ID;
   private saltKey = process.env.PHONEPE_SALT_KEY;
-  private saltIndex = process.env.PHONEPE_SALT_INDEX;
-  private phonePeHostUrl = process.env.PHONEPE_HOST_URL;
-  private callbackUrl = `${process.env.API_BASE_URL}/orders/callback`;
+  private saltIndex = process.env.PHONEPE_SALT_INDEX || '1';
+  private phonePeHostUrl = process.env.PHONEPE_HOST_URL || 'https://api-preprod.phonepe.com/apis/pg-sandbox'; // Default to Sandbox if missing
+  
+  // CRITICAL: This MUST match your Hostinger Domain (https://api.facelookshopping.in)
+  private apiBaseUrl = process.env.APP_URL; 
 
-  constructor(
-    // Inject your Database Repository here (e.g., @InjectRepository(Order) private orderRepo)
-  ) { }
+  constructor() {}
+
+  // Edge Case Check: Ensure Env Vars are present on startup
+  onModuleInit() {
+    if (!this.apiBaseUrl) {
+      this.logger.error('CRITICAL: APP_URL is not defined in .env! Payments will fail.');
+    }
+    if (!this.saltKey) {
+      this.logger.error('CRITICAL: PHONEPE_SALT_KEY is missing!');
+    }
+  }
 
   // 1. Initiate Payment
   async getPhonePeSdkParams(amount: number, userId: string, mobileNumber: string) {
     const transactionId = `TXN_${uuidv4()}`;
-    
+
+    // Construct Callback URL dynamically using the Real Domain
+    const callbackUrl = `${this.apiBaseUrl}/payments/callback`;
+
     const payload = {
       merchantId: this.merchantId,
       merchantTransactionId: transactionId,
       merchantUserId: `USER_${userId}`,
       amount: amount * 100, // Amount in paise
-      callbackUrl: this.callbackUrl,
+      callbackUrl: callbackUrl,
       mobileNumber: mobileNumber,
       paymentInstrument: {
-        type: "PAY_PAGE" // SDK handles the UI
+        type: "PAY_PAGE"
       }
     };
 
     // 1. Encode Payload to Base64
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
 
-    // 2. Generate Checksum (Base64 + Endpoint + Salt)
-    // SDK Endpoint is usually "/pg/v1/pay"
+    // 2. Generate Checksum
     const apiEndPoint = "/pg/v1/pay";
     const stringToHash = base64Payload + apiEndPoint + this.saltKey;
     const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
@@ -49,12 +61,12 @@ export class PaymentsService {
       checksum: checksum,
       merchantTransactionId: transactionId,
       apiEndPoint: apiEndPoint,
-      packageName: process.env.APP_PACKAGE_NAME,
-      callbackUrl: this.callbackUrl// Required for Android context
+      packageName: process.env.APP_PACKAGE_NAME || 'com.facelook.shopping', // Fallback if missing
+      callbackUrl: callbackUrl 
     };
   }
 
-  // 2. Check Payment Status (Manual Verification)
+  // 2. Check Payment Status
   async checkPaymentStatus(merchantTransactionId: string): Promise<{ success: boolean; status: string }> {
     const stringToHash = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}` + this.saltKey;
     const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
@@ -73,9 +85,6 @@ export class PaymentsService {
       );
 
       const status = response.data.code;
-
-      // Update DB based on status
-      // if (status === 'PAYMENT_SUCCESS') { await this.markOrderAsPaid(merchantTransactionId); }
 
       return {
         success: status === 'PAYMENT_SUCCESS',
