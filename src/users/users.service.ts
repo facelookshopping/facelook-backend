@@ -178,6 +178,13 @@ export class UsersService implements OnModuleInit {
     return user;
   }
 
+  async findOneByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { email },
+      relations: ['addresses'] // Optional: Include relations if needed
+    });
+  }
+
   async validateUser(email: string, password: string, fcmToken?: string): Promise<User | null> {
     const user = await this.usersRepository.findOne({
       where: { email },
