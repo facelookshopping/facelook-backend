@@ -13,7 +13,11 @@ async function bootstrap() {
   // --- 1. Security: Enable CORS (Crucial for Production) ---
   // This allows your app and payment gateways to talk to the server without blocking.
   app.enableCors({
-    origin: '*', // For mobile apps, '*' is usually fine. For web, strictly list domains.
+    origin: ['*',
+      'https://admin.facelookshopping.in',
+      'https://staging.facelookshopping.in',
+      'https://facelookshopping.in'
+    ], // For mobile apps, '*' is usually fine. For web, strictly list domains.
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
