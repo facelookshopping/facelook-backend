@@ -6,30 +6,69 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import * as fs from 'fs';
+import session from 'express-session';
+
+const uploadDir = join(process.cwd(), 'uploads');
+const tempDir = join(uploadDir, 'temp');
+
+// Ensure both exist
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+// 2. Tell the system to use this folder for temporary files
+process.env.TMPDIR = tempDir;
+process.env.TEMP = tempDir;
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // --- 1. Security: Enable CORS (Crucial for Production) ---
-  // This allows your app and payment gateways to talk to the server without blocking.
+  app.use(
+    session({
+      secret: 'my-super-secret-key',
+      resave: false,
+      saveUninitialized: false,
+      cookie: { httpOnly: true, secure: false }, // Set secure: true in production (HTTPS)
+    }),
+  );
+
+  // --- 1. Security: Enable CORS ---
   app.enableCors({
-    origin: ['*',
-      // 'https://admin.facelookshopping.in',
+    origin: [
+      'https://admin.facelookshopping.in',
       'https://staging.facelookshopping.in',
-      'https://facelookshopping.in'
-    ], // For mobile apps, '*' is usually fine. For web, strictly list domains.
+      'https://facelookshopping.in',
+      'http://localhost:3000',
+      '*'
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
-  // --- Firebase Setup ---
-  // We use process.cwd() to ensure we find the file in the Docker container root
-  const serviceAccountPath = join(process.cwd(), 'firebase_service_account.json');
-  const serviceAccount = require(serviceAccountPath);
+  // --- 2. Firebase Dynamic Setup ---
+  const env = process.env.NODE_ENV || 'development';
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  // Select file based on environment
+  const serviceAccountFileName = env === 'production'
+    ? 'firebase-service-account-production.json'
+    : 'firebase-service-account-staging.json';
+
+  const serviceAccountPath = join(process.cwd(), serviceAccountFileName);
+
+  console.log(`🔥 Loading Firebase Config from: ${serviceAccountPath}`);
+
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log('✅ Firebase Admin Initialized Successfully');
+    }
+  } else {
+    console.error(`❌ CRITICAL ERROR: Firebase config file NOT FOUND at: ${serviceAccountPath}`);
+  }
 
   // --- Global Config ---
   app.useGlobalPipes(new ValidationPipe({
@@ -42,30 +81,30 @@ async function bootstrap() {
     defaultVersion: '1',
   });
 
-  app.use(morgan('combined')); // 'combined' gives better logs for production than 'dev'
+  app.use(morgan('combined'));
 
-  // --- 2. Serve Static Assets (Robust Fix) ---
-  // standardizes the path to /usr/src/app/uploads regardless of build structure
+  // --- 3. Serve Static Assets ---
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
 
   // --- Swagger Setup ---
-  // We strictly hide Swagger in production unless you explicitly want it
   const config = new DocumentBuilder()
     .setTitle('FaceLook')
     .setDescription('The FaceLook API description')
     .setVersion('1.0')
     .addTag('shopping')
     .addBearerAuth()
-    .addServer(process.env.APP_URL || 'http://localhost:3000') // Explicitly set Server URL
+    .addServer(process.env.APP_URL || 'http://localhost:3000')
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory); // Changed path to 'docs' to avoid conflict with 'api' routes
+  SwaggerModule.setup('docs', app, documentFactory);
 
   // --- Start Server ---
-  await app.listen(process.env.PORT || 3000);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`🚀 Application is running on: ${await app.getUrl()}`);
+  console.log(`🌍 Environment: ${env}`);
 }
 bootstrap();

@@ -5,6 +5,8 @@ import { User, UserRole } from './user.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import * as admin from 'firebase-admin';
+import path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -194,7 +196,7 @@ export class UsersService implements OnModuleInit {
     if (user && user.password) {
       const isMatch = await bcrypt.compare(password, user.password);
       if (isMatch) {
-        if (fcmToken) {
+        if (fcmToken && user.role == 'user') {
           user.fcmToken = fcmToken;
           await this.usersRepository.save(user);
           await this.sendLoginNotification(fcmToken, user.name || 'User');
@@ -240,6 +242,31 @@ export class UsersService implements OnModuleInit {
   async updateProfilePicture(userId: number, photoUrl: string): Promise<User> {
     await this.usersRepository.update(userId, { profilePicture: photoUrl });
     return this.findById(userId);
+  }
+
+  async removeProfileImage(userId: number): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // 1. Delete the file from the 'uploads' folder if it exists
+    if (user.profileImage) {
+      try {
+        // Adjust 'uploads' path if your folder structure is different
+        // process.cwd() gets the root folder of your project
+        const filePath = path.join(process.cwd(), 'uploads', user.profileImage);
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath); // Delete file
+        }
+      } catch (err) {
+        console.error('Error deleting profile image file:', err);
+      }
+    }
+
+    // 2. Set database column to null
+    user.profileImage = null; // ⚠️ Change 'profileImage' to match your Entity column name
+
+    return this.usersRepository.save(user);
   }
 
   async setCurrentRefreshToken(refreshToken: string, userId: number) {

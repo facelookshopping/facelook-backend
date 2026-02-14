@@ -1,6 +1,7 @@
 import { Exclude } from 'class-transformer';
 import { Address } from '../addresses/address.entity';
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, BaseEntity } from 'typeorm';
+import { Order } from 'src/orders/order.entity';
 
 export enum UserRole {
   SUPERADMIN = 'superadmin',
@@ -43,6 +44,9 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
+  @OneToMany(() => Order, (order) => order.user)
+  orders: Order[];
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -55,4 +59,5 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   @Exclude()
   currentHashedRefreshToken?: string | null;
+  profileImage: any;
 }

@@ -2,9 +2,9 @@ import { Controller, Get, Param, Query, ParseIntPipe, DefaultValuePipe } from '@
 import { ProductsService } from './products.service';
 import { Product } from './product.entity';
 
-@Controller() 
+@Controller()
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   // --- METADATA ENDPOINTS ---
   @Get('categories')
@@ -45,6 +45,11 @@ export class ProductsController {
     @Query('sort') sort?: string,
   ) {
     return this.productsService.findAll({ page, limit, gender, category, minPrice, maxPrice, sort });
+  }
+
+  @Get('variants') // 👈 Access via: GET /products/variants
+  getAllVariants() {
+    return this.productsService.findAllVariants();
   }
 
   @Get('products/:id')

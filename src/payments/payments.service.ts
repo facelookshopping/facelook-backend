@@ -30,14 +30,14 @@ export class PaymentsService implements OnModuleInit {
 
   // 1. Initiate Payment
   async getPhonePeSdkParams(amount: number, userId: string, mobileNumber: string) {
-    const transactionId = `TXN_${uuidv4()}`;
+    const merchantTransactionId = `MT${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
     // Construct Callback URL dynamically using the Real Domain
     const callbackUrl = `${this.apiBaseUrl}/payments/callback`;
 
     const payload = {
       merchantId: this.merchantId,
-      merchantTransactionId: transactionId,
+      merchantTransactionId: merchantTransactionId,
       merchantUserId: `USER_${userId}`,
       amount: amount * 100, // Amount in paise
       callbackUrl: callbackUrl,
@@ -59,7 +59,7 @@ export class PaymentsService implements OnModuleInit {
     return {
       base64Payload: base64Payload,
       checksum: checksum,
-      merchantTransactionId: transactionId,
+      merchantTransactionId: merchantTransactionId,
       apiEndPoint: apiEndPoint,
       packageName: process.env.APP_PACKAGE_NAME || 'com.facelook.shopping', // Fallback if missing
       callbackUrl: callbackUrl 

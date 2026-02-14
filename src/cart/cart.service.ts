@@ -58,7 +58,8 @@ export class CartService {
   async getCartSummary(userId: number): Promise<{ items: Cart[]; totalAmount: number; totalItems: number }> {
     const items = await this.cartRepository.find({
       where: { user: { id: userId } },
-      relations: ['product'],
+      // ✅ FIX: Add 'product.variants' here
+      relations: ['product', 'product.variants'],
       order: { createdAt: 'DESC' }
     });
 

@@ -219,6 +219,12 @@ export class UsersController {
     const updatedUser = await this.usersService.updateProfilePicture(req.user.id, filePath);
     return this.generateAuthResponse(updatedUser);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('profile-image')
+  async removeProfileImage(@Req() req) {
+    return this.usersService.removeProfileImage(req.user.id);
+  }
 }
 
 function diskStorage(arg0: {

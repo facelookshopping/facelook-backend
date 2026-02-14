@@ -9,7 +9,7 @@ export enum Gender {
 }
 
 @Entity()
-export class Product extends BaseEntity{
+export class Product extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -36,7 +36,6 @@ export class Product extends BaseEntity{
 
   @OneToMany(() => ProductVariant, (variant) => variant.product, {
     cascade: true,
-    eager: true
   })
   variants: ProductVariant[];
 
@@ -59,4 +58,7 @@ export class Product extends BaseEntity{
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  ownerId: number;
 }
