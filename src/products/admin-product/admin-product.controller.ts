@@ -32,11 +32,15 @@ export class AdminProductsController {
   @Post()
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   @UseInterceptors(
-    FilesInterceptor('files', 10, { // Max 10 files
+    FilesInterceptor('files', 10, { // 1. Max 10 files
       storage: diskStorage({
-        destination: './uploads', // ✅ Saves to Hostinger disk mapped via Docker volume
+        destination: './uploads',
         filename: editFileName,
       }),
+      // ✅ 2. RESTRICTION ADDED HERE
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB in bytes
+      },
       fileFilter: (req, file, callback) => {
         if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
           return callback(new BadRequestException('Only image files are allowed!'), false);
@@ -47,32 +51,29 @@ export class AdminProductsController {
   )
   async create(
     @UploadedFiles() files: Array<Express.Multer.File>,
-    @Body() body: any // Raw body from FormData is all strings
+    @Body() body: any
   ) {
-    // A. Parse form-data strings back to Typed Data
     const parsedBody = { ...body };
 
     try {
-      if (body.variants && typeof body.variants === 'string') parsedBody.variants = JSON.parse(body.variants);
+      if (body.variants && typeof body.variants === 'string') {
+        parsedBody.variants = JSON.parse(body.variants);
+      }
       if (body.price) parsedBody.price = parseFloat(body.price);
-      if (body.isTrending) parsedBody.isTrending = body.isTrending === 'true';
-      // Add other conversions if needed (e.g. brand, category are already strings)
+      // 'true' string to boolean
+      if (body.isTrending) parsedBody.isTrending = String(body.isTrending) === 'true';
     } catch (e) {
       throw new BadRequestException('Invalid JSON format in variants or fields');
     }
 
-    // B. Handle Images
     if (files && files.length > 0) {
+      // Use env variable or default fallback
       const appUrl = process.env.APP_URL || 'https://api.facelookshopping.in';
-      // Map file paths to Full URLs
       parsedBody.images = files.map(file => `${appUrl}/uploads/${file.filename}`);
     } else {
-      parsedBody.images = []; // Handle case with no images
+      parsedBody.images = [];
     }
 
-    // C. Validate & Call Service
-    // We cast to CreateProductDto to ensure Typescript is happy, 
-    // though class-validator in the Service will do the real check.
     return this.productsService.create(parsedBody as CreateProductDto);
   }
 
