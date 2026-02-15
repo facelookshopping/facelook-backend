@@ -71,8 +71,9 @@ export class UsersController {
     @Body('password') password: string,
     @Body('phoneNumber') phoneNumber: string,
     @Body('userName') userName: string,
+    @Body('fcmToken') fcmToken?: string,
   ) {
-    const user = await this.usersService.createWithEmail(email, password, phoneNumber, userName);
+    const user = await this.usersService.createWithEmail(email, password, phoneNumber, userName, fcmToken);
     return this.generateAuthResponse(user);
   }
 

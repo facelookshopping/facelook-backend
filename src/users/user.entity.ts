@@ -35,8 +35,8 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   password?: string;
 
-  @Column({ nullable: true })
-  profilePicture: string;
+  @Column({ type: 'text', nullable: true })
+  profilePicture: string | null;
 
   @Column({ default: false })
   isVerified: boolean;
@@ -59,5 +59,5 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   @Exclude()
   currentHashedRefreshToken?: string | null;
-  profileImage: any;
+  // profileImage: any;
 }

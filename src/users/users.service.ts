@@ -103,6 +103,52 @@ export class UsersService implements OnModuleInit {
     }
   }
 
+  /**
+   * Sends a Welcome Push Notification via Firebase (FCM)
+   */
+  async sendWelcomeNotification(fcmToken: string, userName: string): Promise<void> {
+    try {
+      const message: admin.messaging.Message = {
+        notification: {
+          title: 'Welcome to FaceLook! 🎉',
+          body: `Hello ${userName}, we are excited to have you style with us!`,
+        },
+        token: fcmToken,
+        // Optional: Data payload for app navigation
+        data: {
+          type: 'welcome',
+          route: '/home',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK', // Required for Flutter background clicks
+        },
+        // Android Specific Config
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            channelId: 'default_channel_id', // Ensure this matches your Flutter channel ID
+            icon: 'notification_icon', // Ensure this drawable exists in android/app/src/main/res/drawable
+          },
+        },
+        // iOS Specific Config
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      await admin.messaging().send(message);
+      console.log(`✅ Welcome notification sent to ${userName}`);
+
+    } catch (error) {
+      // 🔴 We catch the error so it doesn't fail the Registration process
+      console.error('❌ Error sending welcome notification:', error);
+    }
+  }
+
   async updatePassword(userId: number, newPassword: string): Promise<User> {
     const user = await this.findById(userId);
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -133,7 +179,7 @@ export class UsersService implements OnModuleInit {
     return savedUser;
   }
 
-  async createWithEmail(email: string, password: string, phoneNumber: string, userName: string): Promise<User> {
+  async createWithEmail(email: string, password: string, phoneNumber: string, userName: string, fcmToken?: string): Promise<User> {
     // 1. Check Email
     const existingByEmail = await this.usersRepository.findOne({ where: { email } });
     if (existingByEmail) throw new ConflictException('Email already registered');
@@ -155,10 +201,14 @@ export class UsersService implements OnModuleInit {
       name: userName,
       isVerified: false,
       role: UserRole.USER,
+      fcmToken: fcmToken || undefined,
     });
 
     const savedUser = await this.usersRepository.save(user);
     savedUser.addresses = [];
+    if (fcmToken && user.role == 'user') {
+      await this.sendWelcomeNotification(fcmToken, userName);
+    }
     return savedUser;
   }
 
@@ -248,23 +298,24 @@ export class UsersService implements OnModuleInit {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // 1. Delete the file from the 'uploads' folder if it exists
-    if (user.profileImage) {
+    // 1. Delete the file (Using the correct field name)
+    if (user.profilePicture) { // 👈 Changed from profileImage
       try {
-        // Adjust 'uploads' path if your folder structure is different
-        // process.cwd() gets the root folder of your project
-        const filePath = path.join(process.cwd(), 'uploads', user.profileImage);
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath); // Delete file
+        // Extract filename from URL if needed
+        const fileName = user.profilePicture.split('/').pop();
+        if (fileName) {
+          const filePath = path.join(process.cwd(), 'uploads', fileName);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
         }
       } catch (err) {
-        console.error('Error deleting profile image file:', err);
+        console.error('Error deleting file:', err);
       }
     }
 
-    // 2. Set database column to null
-    user.profileImage = null; // ⚠️ Change 'profileImage' to match your Entity column name
+    // 2. Update the Database
+    user.profilePicture = null; // 👈 Changed from profileImage
 
     return this.usersRepository.save(user);
   }
