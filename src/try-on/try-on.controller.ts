@@ -72,11 +72,11 @@ export class TryOnController {
     // --- 2. GENERATE TRY-ON ---
     @Post('generate')
     async generateTryOn(@Body() dto: GenerateTryOnDto, @Req() req: AuthenticatedRequest) {
-        const baseUrl = process.env.API_BASE_URL || 'http://YOUR_PUBLIC_IP:3000';
+        // const baseUrl = process.env.API_BASE_URL || 'http://YOUR_PUBLIC_IP:3000';
 
-        dto.userImageUrls = dto.userImageUrls.map(url =>
-            url.startsWith('/') ? `${baseUrl}${url}` : url
-        );
+        // dto.userImageUrls = dto.userImageUrls.map(url =>
+        //     url.startsWith('/') ? `${baseUrl}${url}` : url
+        // );
 
         return this.tryOnService.generateTryOn(req.user, dto);
     }

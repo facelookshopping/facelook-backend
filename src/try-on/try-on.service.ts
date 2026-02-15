@@ -38,11 +38,19 @@ export class TryOnService {
         if (!path) return '';
         if (path.startsWith('http')) return path; // Already public
 
-        // Get your ngrok URL from .env (e.g., APP_URL=https://a1b2-c3d4.ngrok-free.app)
-        const baseUrl = this.configService.get<string>('APP_URL') || 'https://gonidic-quivery-lan.ngrok-free.dev';
+        // Get your URL from .env (Ensure this is spelled correctly in your .env file!)
+        const baseUrl = this.configService.get<string>('APP_URL') || 'https://staging.facelookshopping.in';
 
         // Ensure the path starts with a slash
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        let cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+        // ✅ FIX: Encode the path to handle spaces in filenames (e.g., "White Tee.jpg" -> "White%20Tee.jpg")
+        // We split by '/' to encode each segment individually, avoiding encoding the '/' itself.
+        cleanPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+
+        // Revert the encoded slashes back to normal slashes
+        cleanPath = cleanPath.replace(/%2F/g, '/');
+
         return `${baseUrl}${cleanPath}`;
     }
 
