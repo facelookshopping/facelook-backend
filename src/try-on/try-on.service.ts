@@ -38,14 +38,19 @@ export class TryOnService {
         if (!path) return '';
         if (path.startsWith('http')) return path; // Already public
 
-        // Get your URL from .env (Ensure this is spelled correctly in your .env file!)
         const baseUrl = this.configService.get<string>('APP_URL') || 'https://staging.facelookshopping.in';
 
-        // Ensure the path starts with a slash
+        // 1. Ensure the path starts with a slash
         let cleanPath = path.startsWith('/') ? path : `/${path}`;
 
-        // ✅ FIX: Encode the path to handle spaces in filenames (e.g., "White Tee.jpg" -> "White%20Tee.jpg")
-        // We split by '/' to encode each segment individually, avoiding encoding the '/' itself.
+        // 2. ✅ CRITICAL FIX: Check for '/uploads' prefix
+        // Since your main.ts uses prefix: '/uploads/', the URL MUST contain it.
+        // If the DB stored "7/image.jpg", we change it to "/uploads/7/image.jpg"
+        if (!cleanPath.startsWith('/uploads')) {
+            cleanPath = `/uploads${cleanPath}`;
+        }
+
+        // 3. Encode special characters (fixes the "Classic White Tee" space issue)
         cleanPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
 
         // Revert the encoded slashes back to normal slashes
